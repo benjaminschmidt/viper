@@ -34,15 +34,14 @@ DOWN = (0, 1)
 LEFT = (-1, 0)
 RIGHT = (1, 0)
 
-CONFIG = 'level.ini'
+LEVEL = 'level.ini'
 
 
 class Game:
     def __init__(self, clock):
         self.clock = clock
-        self.level = Level(CONFIG)
-        self.player = Player((self.level.width // 2, self.level.height // 2),
-                             RIGHT)
+        self.level = Level(LEVEL)
+        self.player = Player(LEVEL)
         self.current_number = 0
 
         # Setting the position of the number on the player ensures that a new
@@ -65,7 +64,7 @@ class Game:
             region = (self.level.width // 2 - 13,
                       self.level.height // 2 - 2,
                       26,
-                      3),
+                      3)
             pause = pygcurse.PygcurseTextbox(self.win,
                                              region=region,
                                              fgcolor=self.level.text_color,
@@ -149,13 +148,14 @@ class Game:
                     self.player.direction = RIGHT
 
         self.next_frame()
-        self.clock.tick_busy_loop(self.level.speed)
+        self.clock.tick_busy_loop(self.player.speed)
 
     def next_frame(self):
         if self.is_paused:
             return
 
         old_tail = self.player.move()
+        self.level.warp_player_head(self.player)
         if self.death():
             self.game_over()
 
@@ -172,7 +172,7 @@ class Game:
             self.new_number()
 
     def new_number(self):
-        self.player.to_grow += self.level.growth
+        self.player.grow()
         self.current_number += 1
 
         while self.hit_number():
@@ -195,34 +195,56 @@ class Level:
         self.background_color = pygame.Color(config['Colors']['Background'])
         self.text_color = pygame.Color(config['Colors']['Text'])
         self.box_color = pygame.Color(config['Colors']['Box'])
-        self.height = int(config['Level']['Height'])
-        self.width = int(config['Level']['Width'])
-        self.growth = int(config['Level']['Growth'])
-        self.speed = int(config['Level']['Speed'])
+        self.width = int(config['Dimensions']['Width'])
+        self.height = int(config['Dimensions']['Height'])
 
         # Create the grid where True is an obstacle and False is empty
         self.grid = []
         for i in range(self.width):
             self.grid.append([False] * self.height)
-        for i in range(self.width):
-            self.grid[i][0] = True
-            self.grid[i][-1] = True
-        for j in range(self.height):
-            self.grid[0][j] = True
-            self.grid[-1][j] = True
+        # for i in range(self.width):
+        #     self.grid[i][0] = True
+        #     self.grid[i][-1] = True
+        # for j in range(self.height):
+        #     self.grid[0][j] = True
+        #     self.grid[-1][j] = True
 
     def collision(self, coordinate):
         """Checks whether the coordinate is a wall."""
         return self.grid[coordinate[0]][coordinate[1]]
 
+    def warp_player_head(self, player):
+        """Puts the player head back into the level if it went outside."""
+        player.position[-1] = (player.position[-1][0] % self.width,
+                               player.position[-1][1] % self.height)
+
 
 class Player:
-    def __init__(self, position, direction):
-        # This array will contain all coordinates occupied by the player
-        self.position = [position]
-
-        self.direction = direction
+    def __init__(self, filename):
+        # Load the configuration file
+        config = configparser.ConfigParser()
+        config.read(filename)
+        self.growth = int(config['Player']['Growth'])
+        self.speed = int(config['Player']['Speed'])
         self.to_grow = 0
+
+        self.direction = config['Player']['Direction']
+        if self.direction == 'up':
+            self.direction = UP
+        elif self.direction == 'down':
+            self.direction = DOWN
+        elif self.direction == 'left':
+            self.direction = LEFT
+        elif self.direction == 'right':
+            self.direction = RIGHT
+
+        height = int(config['Dimensions']['Height'])
+        width = int(config['Dimensions']['Width'])
+        startx = int(config['Player']['Startx']) % width
+        starty = int(config['Player']['Starty']) % height
+
+        # This array will contain all coordinates occupied by the player
+        self.position = [(startx, starty)]
 
     def collision(self, coordinate, skip_head=False):
         """Checks whether the player occupies the coordinate. If skip_head is
@@ -231,6 +253,9 @@ class Player:
             return coordinate in self.position[:-1]
         else:
             return coordinate in self.position
+
+    def grow(self):
+        self.to_grow += self.growth
 
     def head(self):
         """Returns the coordinate of the head of the player."""

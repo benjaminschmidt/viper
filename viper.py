@@ -40,45 +40,19 @@ CONFIG = 'level.ini'
 class Game:
     def __init__(self, clock):
         self.clock = clock
-
-        # Load the configuration file
-        config = configparser.ConfigParser()
-        config.read(CONFIG)
-        self.player_color = pygame.Color(config['Colors']['Player'])
-        self.boundary_color = pygame.Color(config['Colors']['Boundary'])
-        self.background_color = pygame.Color(config['Colors']['Background'])
-        self.text_color = pygame.Color(config['Colors']['Text'])
-        self.box_color = pygame.Color(config['Colors']['Box'])
-        self.height = int(config['Level']['Height'])
-        self.width = int(config['Level']['Width'])
-        self.growth = int(config['Level']['Growth'])
-        self.speed = int(config['Level']['Speed'])
-
-        # Create the grid where True is an obstacle and False is empty
-        self.grid = []
-        for i in range(self.width):
-            self.grid.append([False]*self.height)
-        for i in range(self.width):
-            self.grid[i][0] = True
-            self.grid[i][-1] = True
-        for j in range(self.height):
-            self.grid[0][j] = True
-            self.grid[-1][j] = True
-
-        # This array will contain all coordinates occupied by the player
-        self.player_pos = [(self.width // 2, self.height // 2)]
-
-        self.player_direction = RIGHT
-        self.player_length = 1
-        self.to_grow = 0
+        self.level = Level(CONFIG)
+        self.player = Player((self.level.width // 2, self.level.height // 2),
+                             RIGHT)
         self.current_number = 0
-        self.is_paused = False
 
         # Setting the position of the number on the player ensures that a new
         # number will be generated.
-        self.number_pos = self.player_pos[-1]
+        self.number_pos = self.player.head()
+        self.is_paused = False
 
-        self.win = pygcurse.PygcurseWindow(self.width, self.height, 'Viper')
+        self.win = pygcurse.PygcurseWindow(self.level.width,
+                                           self.level.height,
+                                           'Viper')
         self.draw_state()
         self.new_number()
 
@@ -88,47 +62,49 @@ class Game:
             self.is_paused = False
         else:
             self.is_paused = True
+            region = (self.level.width // 2 - 13,
+                      self.level.height // 2 - 2,
+                      26,
+                      3),
             pause = pygcurse.PygcurseTextbox(self.win,
-                                             region=(self.width // 2 - 13,
-                                                     self.height // 2 - 2,
-                                                     26,
-                                                     3),
-                                             fgcolor=self.text_color,
-                                             bgcolor=self.box_color,
+                                             region=region,
+                                             fgcolor=self.level.text_color,
+                                             bgcolor=self.level.box_color,
                                              text='Press space to continue!')
             pause.update()
             self.win.update()
 
     def draw_state(self):
         # Draw the level
-        self.win.fill(' ', bgcolor=self.background_color)
-        for i in range(self.width):
-            for j in range(self.height):
-                if self.grid[i][j]:
+        self.win.fill(' ', bgcolor=self.level.background_color)
+        for i in range(self.level.width):
+            for j in range(self.level.height):
+                if self.level.grid[i][j]:
                     self.win.putchar(' ',
                                      x=i,
                                      y=j,
-                                     bgcolor=self.boundary_color)
+                                     bgcolor=self.level.boundary_color)
 
         # Draw the number
         self.win.cursor = self.number_pos
         self.win.putchar(str(self.current_number),
-                         fgcolor=self.text_color,
-                         bgcolor=self.background_color)
+                         fgcolor=self.level.text_color,
+                         bgcolor=self.level.background_color)
 
         # Draw the player
-        for point in self.player_pos:
+        for point in self.player.position:
             self.win.cursor = point
-            self.win.putchar(' ', bgcolor=self.player_color)
+            self.win.putchar(' ', bgcolor=self.level.player_color)
 
     def game_over(self):
+        region = (self.level.width // 2 - 6,
+                  self.level.height // 2 - 2,
+                  12,
+                  3)
         end = pygcurse.PygcurseTextbox(self.win,
-                                       region=(self.width // 2 - 6,
-                                               self.height // 2 - 2,
-                                               12,
-                                               3),
-                                       fgcolor=self.text_color,
-                                       bgcolor=self.box_color,
+                                       region=region,
+                                       fgcolor=self.level.text_color,
+                                       bgcolor=self.level.box_color,
                                        text='Game Over!')
         end.update()
         self.win.update()
@@ -137,18 +113,12 @@ class Game:
         sys.exit()
 
     def hit_number(self):
-        return (self.grid[self.number_pos[0]][self.number_pos[1]] or
-                self.number_pos in self.player_pos)
+        return (self.level.collision(self.number_pos) or
+                self.player.collision(self.number_pos))
 
-    def hit_wall(self):
-        x = self.player_pos[-1][0]
-        y = self.player_pos[-1][1]
-        if self.grid[x][y]:
-            return True
-        elif self.player_pos[-1] in self.player_pos[:-1]:
-            return True
-        else:
-            return False
+    def death(self):
+        return (self.level.collision(self.player.head()) or
+                self.player.collision(self.player.head(), skip_head=True))
 
     def loop(self):
         event = pygame.event.poll()
@@ -166,56 +136,129 @@ class Game:
             if self.is_paused:
                 return
             elif event.key == K_UP:
-                if self.player_direction != DOWN:
-                    self.player_direction = UP
+                if self.player.direction != DOWN:
+                    self.player.direction = UP
             elif event.key == K_DOWN:
-                if self.player_direction != UP:
-                    self.player_direction = DOWN
+                if self.player.direction != UP:
+                    self.player.direction = DOWN
             elif event.key == K_LEFT:
-                if self.player_direction != RIGHT:
-                    self.player_direction = LEFT
+                if self.player.direction != RIGHT:
+                    self.player.direction = LEFT
             elif event.key == K_RIGHT:
-                if self.player_direction != LEFT:
-                    self.player_direction = RIGHT
+                if self.player.direction != LEFT:
+                    self.player.direction = RIGHT
 
         self.next_frame()
-        self.clock.tick_busy_loop(self.speed)
+        self.clock.tick_busy_loop(self.level.speed)
 
     def next_frame(self):
         if self.is_paused:
             return
 
-        next_pos = (self.player_pos[-1][0] + self.player_direction[0],
-                    self.player_pos[-1][1] + self.player_direction[1])
-        self.player_pos.append(next_pos)
-        if self.hit_wall():
+        old_tail = self.player.move()
+        if self.death():
             self.game_over()
 
-        self.win.cursor = next_pos
-        self.win.putchar(' ', bgcolor=self.player_color)
+        self.win.cursor = self.player.head()
+        self.win.putchar(' ', bgcolor=self.level.player_color)
 
-        if self.to_grow == 0:
-            self.win.cursor = self.player_pos[0]
-            self.win.putchar(' ', bgcolor=self.background_color)
-            del self.player_pos[0]
-        else:
-            self.to_grow -= 1
+        if old_tail is not None:
+            self.win.putchar(' ',
+                             x=old_tail[0],
+                             y=old_tail[1],
+                             bgcolor=self.level.background_color)
 
         if self.hit_number():
             self.new_number()
 
     def new_number(self):
-        self.to_grow += self.growth
+        self.player.to_grow += self.level.growth
         self.current_number += 1
 
         while self.hit_number():
-            self.number_pos = (random.randint(0, self.width - 1),
-                               random.randint(0, self.height - 1))
+            self.number_pos = (random.randint(0, self.level.width - 1),
+                               random.randint(0, self.level.height - 1))
 
         self.win.cursor = self.number_pos
         self.win.putchar(str(self.current_number % 10),
-                         fgcolor=self.text_color,
-                         bgcolor=self.background_color)
+                         fgcolor=self.level.text_color,
+                         bgcolor=self.level.background_color)
+
+
+class Level:
+    def __init__(self, filename):
+        # Load the configuration file
+        config = configparser.ConfigParser()
+        config.read(filename)
+        self.player_color = pygame.Color(config['Colors']['Player'])
+        self.boundary_color = pygame.Color(config['Colors']['Boundary'])
+        self.background_color = pygame.Color(config['Colors']['Background'])
+        self.text_color = pygame.Color(config['Colors']['Text'])
+        self.box_color = pygame.Color(config['Colors']['Box'])
+        self.height = int(config['Level']['Height'])
+        self.width = int(config['Level']['Width'])
+        self.growth = int(config['Level']['Growth'])
+        self.speed = int(config['Level']['Speed'])
+
+        # Create the grid where True is an obstacle and False is empty
+        self.grid = []
+        for i in range(self.width):
+            self.grid.append([False] * self.height)
+        for i in range(self.width):
+            self.grid[i][0] = True
+            self.grid[i][-1] = True
+        for j in range(self.height):
+            self.grid[0][j] = True
+            self.grid[-1][j] = True
+
+    def collision(self, coordinate):
+        """Checks whether the coordinate is a wall."""
+        return self.grid[coordinate[0]][coordinate[1]]
+
+
+class Player:
+    def __init__(self, position, direction):
+        # This array will contain all coordinates occupied by the player
+        self.position = [position]
+
+        self.direction = direction
+        self.to_grow = 0
+
+    def collision(self, coordinate, skip_head=False):
+        """Checks whether the player occupies the coordinate. If skip_head is
+        True, then it skips checking the coordinate of the head."""
+        if skip_head:
+            return coordinate in self.position[:-1]
+        else:
+            return coordinate in self.position
+
+    def head(self):
+        """Returns the coordinate of the head of the player."""
+        return self.position[-1]
+
+    def move(self):
+        """Moves the player by one frame and returns the coordinate
+        that the tail moved out of. If the snake is growing, it returns
+        None."""
+        next_pos = (self.head()[0] + self.direction[0],
+                    self.head()[1] + self.direction[1])
+        self.position.append(next_pos)
+
+        if self.to_grow == 0:
+            old_tail = self.tail()
+            self.shrink()
+            return old_tail
+        else:
+            self.to_grow -= 1
+            return None
+
+    def tail(self):
+        """Returns the coordinate of the tail of the player."""
+        return self.position[0]
+
+    def shrink(self):
+        """Removes the tail of the player."""
+        del self.position[0]
 
 
 if __name__ == "__main__":

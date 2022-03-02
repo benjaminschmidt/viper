@@ -200,18 +200,57 @@ class Level:
 
         # Create the grid where True is an obstacle and False is empty
         self.grid = []
+        # Initialize the grid with no walls.
         for i in range(self.width):
             self.grid.append([False] * self.height)
-        # for i in range(self.width):
-        #     self.grid[i][0] = True
-        #     self.grid[i][-1] = True
-        # for j in range(self.height):
-        #     self.grid[0][j] = True
-        #     self.grid[-1][j] = True
+
+        for line in config['Obstacle Lines'].values():
+            x_0, y_0, x_1, y_1 = (int(element) for element in line.split(','))
+            self.add_line((x_0, y_0), (x_1, y_1))
 
     def collision(self, coordinate):
         """Checks whether the coordinate is a wall."""
         return self.grid[coordinate[0]][coordinate[1]]
+
+    def add_line(self, start, end):
+        """Adds a line of obstacles from start to end.
+        We use Bresenham's algorithm."""
+        slope_steep = abs(end[1] - start[1]) > abs(end[0] - start[0])
+        if slope_steep:
+            if start[1] > end[1]:
+                # We draw in increasing y-direction.
+                start, end = end, start
+            # We do the same algorithm as for flat slope, but with x and y exchanged.
+            x = start[1]
+            y = start[0]
+            dx = end[1] - start[1]
+            dy = end[0] - start[0]
+        else:
+            if start[0] > end[0]:
+                # For a flat slope, we draw in increasing x-direction
+                start, end = end, start
+            x = start[0]
+            y = start[1]
+            dx = end[0] - start[0]
+            dy = end[1] - start[1]
+
+        if dy >= 0:
+            slope_sign = 1
+        else:
+            slope_sign = -1
+
+        decision = slope_sign * 2 * dy - dx
+        for i in range(dx + 1):
+            if slope_steep:
+                self.grid[y][x] = True
+            else:
+                self.grid[x][y] = True
+            x += 1
+            if decision > 0:
+                y += slope_sign
+                decision += slope_sign * 2 * dy - 2 * dx
+            else:
+                decision += slope_sign * 2 * dy
 
     def warp_player_head(self, player):
         """Puts the player head back into the level if it went outside."""

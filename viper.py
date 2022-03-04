@@ -26,15 +26,19 @@ import pygcurse
 import random
 import sys
 
-from pygame.locals import (K_SPACE, K_UP, K_LEFT, K_DOWN, K_RIGHT, K_ESCAPE,
-                           KEYDOWN, QUIT)
+from pygame.locals import (K_SPACE, K_UP, K_LEFT, K_DOWN, K_RIGHT,
+                           K_n, K_y, KEYDOWN, QUIT)
 
 UP = (0, -1)
 DOWN = (0, 1)
 LEFT = (-1, 0)
 RIGHT = (1, 0)
 
-LEVEL = 'level.ini'
+LEVEL = 'level1.ini'
+
+
+def absolute_coordinate(coordinate):
+    return coordinate[0], coordinate[1] + 1
 
 
 class Game:
@@ -42,80 +46,132 @@ class Game:
         self.clock = clock
         self.level = Level(LEVEL)
         self.player = Player(LEVEL)
-        self.current_number = 0
+
+        # Has the game been paused via the space bar.
+        self.paused = False
+
+        # False means that the game is not running for any reason
+        self.running = True
+
+        # This will be the set to the coordinates of a box on the screen later.
+        self.box_region = None
+
+        self.win = pygcurse.PygcurseWindow(*self.total_dimensions(), 'Viper')
 
         # Setting the position of the number on the player ensures that a new
         # number will be generated.
         self.number_pos = self.player.head()
-        self.is_paused = False
-
-        self.win = pygcurse.PygcurseWindow(self.level.width,
-                                           self.level.height,
-                                           'Viper')
-        self.draw_state()
+        self.current_number = 0
         self.new_number()
+        self.draw_game()
+        self.change_pause()
 
     def change_pause(self):
-        if self.is_paused:
-            self.draw_state()
-            self.is_paused = False
+        if self.paused:
+            self.draw_game()
+            self.paused = False
+            self.running = True
         else:
-            self.is_paused = True
-            region = (self.level.width // 2 - 13,
-                      self.level.height // 2 - 2,
-                      26,
-                      3)
-            pause = pygcurse.PygcurseTextbox(self.win,
-                                             region=region,
-                                             fgcolor=self.level.text_color,
-                                             bgcolor=self.level.box_color,
-                                             text='Press space to continue!')
-            pause.update()
-            self.win.update()
+            self.paused = True
+            self.running = False
+            self.draw_box('Press space to play!')
 
-    def draw_state(self):
-        # Draw the level
-        self.win.fill(' ', bgcolor=self.level.background_color)
-        for i in range(self.level.width):
-            for j in range(self.level.height):
+    def delete_player(self):
+        for point in self.player.position:
+            if self.level.grid[point[0]][point[1]]:
+                self.win.cursor = absolute_coordinate(point)
+                self.win.putchar(' ', bgcolor=self.level.boundary_color)
+            else:
+                self.win.cursor = absolute_coordinate(point)
+                self.win.putchar(' ', bgcolor=self.level.background_color)
+
+    def draw_box(self, text):
+        self.box_region = (self.level.width // 2 - len(text) // 2 - 1,
+                           self.level.height // 2 - 2,
+                           len(text) + 2,
+                           3)
+        box = pygcurse.PygcurseTextbox(self.win,
+                                       region=self.box_region,
+                                       fgcolor=self.level.text_color,
+                                       bgcolor=self.level.box_color,
+                                       text=text)
+        box.update()
+        self.win.update()
+
+    def draw_game(self):
+        self.draw_level()
+        self.draw_number()
+        self.draw_player()
+        self.draw_info()
+
+    def draw_level(self):
+        if self.box_region is None:
+            x = 0
+            y = 0
+            width = self.level.width
+            height = self.level.height
+        else:
+            x, y, width, height = self.box_region
+
+        self.win.fill(bgcolor=self.level.background_color,
+                      region=self.box_region)
+        for i in range(x, x + width):
+            for j in range(y, y + height):
                 if self.level.grid[i][j]:
+                    self.win.cursor = absolute_coordinate((i, j))
                     self.win.putchar(' ',
                                      x=i,
-                                     y=j,
+                                     y=j + 1,
                                      bgcolor=self.level.boundary_color)
 
-        # Draw the number
-        self.win.cursor = self.number_pos
-        self.win.putchar(str(self.current_number),
+    def draw_number(self):
+        self.win.cursor = absolute_coordinate(self.number_pos)
+        self.win.putchar(str(self.current_number % 10),
                          fgcolor=self.level.text_color,
                          bgcolor=self.level.background_color)
 
+    def draw_player(self):
+        if self.box_region is None:
+            x = 0
+            y = 0
+            width = self.level.width
+            height = self.level.height
+        else:
+            x, y, width, height = self.box_region
+
         # Draw the player
         for point in self.player.position:
-            self.win.cursor = point
-            self.win.putchar(' ', bgcolor=self.level.player_color)
+            if x <= point[0] < x + width and y <= point[1] < y + height:
+                self.win.cursor = absolute_coordinate(point)
+                self.win.putchar(' ', bgcolor=self.level.player_color)
 
-    def game_over(self):
-        region = (self.level.width // 2 - 6,
-                  self.level.height // 2 - 2,
-                  12,
-                  3)
-        end = pygcurse.PygcurseTextbox(self.win,
-                                       region=region,
-                                       fgcolor=self.level.text_color,
-                                       bgcolor=self.level.box_color,
-                                       text='Game Over!')
-        end.update()
-        self.win.update()
-        pygcurse.waitforkeypress()
-        pygame.quit()
-        sys.exit()
+    def draw_info(self):
+        width, height = self.total_dimensions()
+        self.win.fill(bgcolor=self.level.background_color,
+                      region=(0, 0, width, 1))
+        self.win.cursor = (0, 0)
+        self.win.putchars('Score: ' + str(self.current_number - 1),
+                          fgcolor=self.level.text_color,
+                          bgcolor=self.level.background_color)
+        self.win.cursor = (width - 10, 0)
+        self.win.putchars('Lives: ' + str(self.player.lives),
+                          fgcolor=self.level.text_color,
+                          bgcolor=self.level.background_color)
+
+    def death(self):
+        self.player.dead = True
+        self.running = False
+        if self.player.lives == 1:
+            self.player.lives -= 1
+            self.draw_box('Game Over! Play again? y/n')
+        else:
+            self.reset_player()
 
     def hit_number(self):
         return (self.level.collision(self.number_pos) or
                 self.player.collision(self.number_pos))
 
-    def death(self):
+    def is_dead(self):
         return (self.level.collision(self.player.head()) or
                 self.player.collision(self.player.head(), skip_head=True))
 
@@ -126,14 +182,19 @@ class Game:
             pygame.quit()
             sys.exit()
         elif event.type == KEYDOWN:
-            if event.key == K_ESCAPE:
-                pygame.quit()
-                sys.exit()
+            # if event.key == K_ESCAPE:
+            #     pygame.quit()
+            #     sys.exit()
+            if self.player.lives == 0:
+                if event.key == K_n:
+                    pygame.quit()
+                    sys.exit()
+                elif event.key == K_y:
+                    self.restart_game()
             elif event.key == K_SPACE:
                 self.change_pause()
-
-            if self.is_paused:
-                return
+            elif self.paused:
+                pass
             elif event.key == K_UP:
                 if self.player.direction != DOWN:
                     self.player.direction = UP
@@ -147,26 +208,23 @@ class Game:
                 if self.player.direction != LEFT:
                     self.player.direction = RIGHT
 
-        self.next_frame()
+        if self.running:
+            self.next_frame()
         self.clock.tick_busy_loop(self.player.speed)
 
     def next_frame(self):
-        if self.is_paused:
-            return
-
         old_tail = self.player.move()
         self.level.warp_player_head(self.player)
-        if self.death():
-            self.game_over()
+        if self.is_dead():
+            self.death()
+            return
 
-        self.win.cursor = self.player.head()
+        self.win.cursor = absolute_coordinate(self.player.head())
         self.win.putchar(' ', bgcolor=self.level.player_color)
 
         if old_tail is not None:
-            self.win.putchar(' ',
-                             x=old_tail[0],
-                             y=old_tail[1],
-                             bgcolor=self.level.background_color)
+            self.win.cursor = absolute_coordinate(old_tail)
+            self.win.putchar(' ', bgcolor=self.level.background_color)
 
         if self.hit_number():
             self.new_number()
@@ -179,10 +237,51 @@ class Game:
             self.number_pos = (random.randint(0, self.level.width - 1),
                                random.randint(0, self.level.height - 1))
 
-        self.win.cursor = self.number_pos
-        self.win.putchar(str(self.current_number % 10),
-                         fgcolor=self.level.text_color,
-                         bgcolor=self.level.background_color)
+        self.draw_number()
+        self.draw_info()
+
+    def reset_player(self):
+        self.delete_player()
+        self.player.next_life()
+
+        self.running = True
+
+        self.current_number = 0
+
+        # Setting the position of the number on the player ensures that a new
+        # number will be generated.
+        self.number_pos = self.player.head()
+
+        # This will be the set to the coordinates of a box on the screen later.
+        self.box_region = None
+
+        self.draw_game()
+        self.new_number()
+        self.change_pause()
+
+    def restart_game(self):
+        self.level = Level(LEVEL)
+        self.player = Player(LEVEL)
+
+        self.running = True
+
+        self.current_number = 0
+
+        # Setting the position of the number on the player ensures that a new
+        # number will be generated.
+        self.number_pos = self.player.head()
+
+        # This will be the set to the coordinates of a box on the screen later.
+        self.box_region = None
+
+        self.win.resize(*self.total_dimensions())
+
+        self.draw_game()
+        self.new_number()
+        self.change_pause()
+
+    def total_dimensions(self):
+        return self.level.width, self.level.height + 1
 
 
 class Level:
@@ -220,7 +319,8 @@ class Level:
             if start[1] > end[1]:
                 # We draw in increasing y-direction.
                 start, end = end, start
-            # We do the same algorithm as for flat slope, but with x and y exchanged.
+            # We do the same algorithm as for flat slope,
+            # but with x and y exchanged.
             x = start[1]
             y = start[0]
             dx = end[1] - start[1]
@@ -264,26 +364,26 @@ class Player:
         config = configparser.ConfigParser()
         config.read(filename)
         self.growth = int(config['Player']['Growth'])
+        self.lives = int(config['Player']['Lives'])
         self.speed = int(config['Player']['Speed'])
         self.to_grow = 0
 
-        self.direction = config['Player']['Direction']
-        if self.direction == 'up':
-            self.direction = UP
-        elif self.direction == 'down':
-            self.direction = DOWN
-        elif self.direction == 'left':
-            self.direction = LEFT
-        elif self.direction == 'right':
-            self.direction = RIGHT
+        self.start_direction = config['Player']['Direction']
+        if self.start_direction == 'up':
+            self.start_direction = UP
+        elif self.start_direction == 'down':
+            self.start_direction = DOWN
+        elif self.start_direction == 'left':
+            self.start_direction = LEFT
+        elif self.start_direction == 'right':
+            self.start_direction = RIGHT
+        self.direction = self.start_direction
 
-        height = int(config['Dimensions']['Height'])
-        width = int(config['Dimensions']['Width'])
-        startx = int(config['Player']['Startx']) % width
-        starty = int(config['Player']['Starty']) % height
+        self.startx = int(config['Player']['Startx'])
+        self.starty = int(config['Player']['Starty'])
 
         # This array will contain all coordinates occupied by the player
-        self.position = [(startx, starty)]
+        self.position = [(self.startx, self.starty)]
 
     def collision(self, coordinate, skip_head=False):
         """Checks whether the player occupies the coordinate. If skip_head is
@@ -315,6 +415,12 @@ class Player:
         else:
             self.to_grow -= 1
             return None
+
+    def next_life(self):
+        self.direction = self.start_direction
+        self.lives -= 1
+        self.position = [(self.startx, self.starty)]
+        self.to_grow = 0
 
     def tail(self):
         """Returns the coordinate of the tail of the player."""

@@ -36,12 +36,6 @@ LEFT = (-1, 0)
 RIGHT = (1, 0)
 
 
-def absolute_coordinate(coordinate):
-    """Takes a coordinate on the level and returns the corresponding
-    coordinate on the window."""
-    return coordinate[0], coordinate[1] + 1
-
-
 class Game:
     def __init__(self, clock):
         self.clock = clock
@@ -84,6 +78,7 @@ class Game:
         self.next_level()
 
     def next_level(self):
+        """Sets up and draws the next level."""
         self.current_level += 1
         filename = self.levelmask.replace('*', str(self.current_level))
         if not os.path.exists(filename):
@@ -108,7 +103,6 @@ class Game:
 
         self.box_region = None
 
-        print(self.window_dimensions())
         self.win.resize(*self.window_dimensions())
 
         self.draw_game()
@@ -116,11 +110,13 @@ class Game:
         self.change_pause()
 
     def restart_game(self):
+        """Restarts the game after the player lost all lives."""
         self.current_level = 0
         self.player = None
         self.next_level()
 
     def change_pause(self):
+        """Toggles between pause mode and game mode."""
         if self.paused:
             self.draw_game()
             self.paused = False
@@ -131,6 +127,7 @@ class Game:
             self.draw_box('Press space to play!')
 
     def new_number(self):
+        """Creates the next number and puts it on the screen."""
         self.player.grow()
         self.current_number += 1
 
@@ -142,6 +139,7 @@ class Game:
         self.draw_info()
 
     def loop(self):
+        """The main event loop."""
         event = pygame.event.poll()
 
         if event.type == QUIT:
@@ -176,17 +174,18 @@ class Game:
         self.clock.tick_busy_loop(self.level.speed)
 
     def next_frame(self):
+        """Determines and draws the next frame on the screen."""
         old_tail = self.player.move()
         self.player.warp_player_head()
         if self.is_dead():
             self.death()
             return
 
-        self.win.cursor = absolute_coordinate(self.player.head())
+        self.win.cursor = self.absolute_coordinate(self.player.head())
         self.win.putchar(' ', bgcolor=self.player_color)
 
         if old_tail is not None:
-            self.win.cursor = absolute_coordinate(old_tail)
+            self.win.cursor = self.absolute_coordinate(old_tail)
             self.win.putchar(' ', bgcolor=self.background_color)
 
         if self.hit_number():
@@ -199,15 +198,17 @@ class Game:
             self.new_number()
 
     def delete_player(self):
+        """Removes the player from the screen."""
         for point in self.player.position:
             if self.level.grid[point[0]][point[1]]:
-                self.win.cursor = absolute_coordinate(point)
+                self.win.cursor = self.absolute_coordinate(point)
                 self.win.putchar(' ', bgcolor=self.boundary_color)
             else:
-                self.win.cursor = absolute_coordinate(point)
+                self.win.cursor = self.absolute_coordinate(point)
                 self.win.putchar(' ', bgcolor=self.background_color)
 
     def draw_box(self, text):
+        """Adds a centered textbox to the screen."""
         self.box_region = (self.level.width // 2 - len(text) // 2 - 1,
                            self.level.height // 2 - 2,
                            len(text) + 2,
@@ -221,12 +222,14 @@ class Game:
         self.win.update()
 
     def draw_game(self):
+        """Redraws all parts of the game at once."""
         self.draw_level()
         self.draw_number()
         self.draw_player()
         self.draw_info()
 
     def draw_level(self):
+        """Draws all the obstacles on the screen."""
         if self.box_region is None:
             x = 0
             y = 0
@@ -240,19 +243,21 @@ class Game:
         for i in range(x, x + width):
             for j in range(y, y + height):
                 if self.level.grid[i][j]:
-                    self.win.cursor = absolute_coordinate((i, j))
+                    self.win.cursor = self.absolute_coordinate((i, j))
                     self.win.putchar(' ',
                                      x=i,
                                      y=j + 1,
                                      bgcolor=self.boundary_color)
 
     def draw_number(self):
-        self.win.cursor = absolute_coordinate(self.number_pos)
+        """Draws the number on the screen."""
+        self.win.cursor = self.absolute_coordinate(self.number_pos)
         self.win.putchar(str(self.current_number % 10),
                          fgcolor=self.text_color,
                          bgcolor=self.background_color)
 
     def draw_player(self):
+        """Draws the player on the screen."""
         if self.box_region is None:
             x = 0
             y = 0
@@ -264,10 +269,11 @@ class Game:
         # Draw the player
         for point in self.player.position:
             if x <= point[0] < x + width and y <= point[1] < y + height:
-                self.win.cursor = absolute_coordinate(point)
+                self.win.cursor = self.absolute_coordinate(point)
                 self.win.putchar(' ', bgcolor=self.player_color)
 
     def draw_info(self):
+        """Draws the row with all extra information such as score and lives."""
         width, height = self.window_dimensions()
         self.win.fill(bgcolor=self.background_color,
                       region=(0, 0, width, 1))
@@ -282,6 +288,7 @@ class Game:
                           bgcolor=self.background_color)
 
     def death(self):
+        """This is what happens after you die."""
         self.running = False
         if self.player.lives == 1:
             self.player.lives -= 1
@@ -290,14 +297,17 @@ class Game:
             self.reset_player()
 
     def hit_number(self):
+        """Returns True if the player head has collided with a number."""
         return (self.level.collision(self.number_pos) or
                 self.player.collision(self.number_pos))
 
     def is_dead(self):
+        """Returns True if the player head has collided with an obstacle."""
         return (self.level.collision(self.player.head()) or
                 self.player.collision(self.player.head(), skip_head=True))
 
     def reset_player(self):
+        """Puts the player back to the starting position for the next life."""
         self.delete_player()
         self.player.next_life()
 
@@ -315,6 +325,12 @@ class Game:
         self.draw_game()
         self.new_number()
         self.change_pause()
+
+    @staticmethod
+    def absolute_coordinate(coordinate):
+        """Takes a coordinate on the level and returns the corresponding
+        coordinate on the window."""
+        return coordinate[0], coordinate[1] + 1
 
     def window_dimensions(self):
         return self.width, self.height + 1
@@ -424,6 +440,7 @@ class Player:
             return coordinate in self.position
 
     def grow(self):
+        """Initiate the growing that occurs after we collect a number."""
         self.to_grow += self.level.growth
 
     def head(self):
@@ -447,6 +464,7 @@ class Player:
             return None
 
     def next_life(self):
+        """Resets the player and removes one life."""
         self.direction = self.level.initial_direction
         self.lives -= 1
         self.position = [self.level.initial_position]

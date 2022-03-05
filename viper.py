@@ -237,6 +237,8 @@ class Game:
             height = self.level.height
         else:
             x, y, width, height = self.box_region
+            # Since self.box_region has absolute coordinates:
+            y -= 1
 
         self.win.fill(bgcolor=self.background_color,
                       region=self.box_region)
@@ -244,10 +246,7 @@ class Game:
             for j in range(y, y + height):
                 if self.level.grid[i][j]:
                     self.win.cursor = self.absolute_coordinate((i, j))
-                    self.win.putchar(' ',
-                                     x=i,
-                                     y=j + 1,
-                                     bgcolor=self.boundary_color)
+                    self.win.putchar(' ', bgcolor=self.boundary_color)
 
     def draw_number(self):
         """Draws the number on the screen."""
@@ -265,6 +264,8 @@ class Game:
             height = self.level.height
         else:
             x, y, width, height = self.box_region
+            # Since self.box_region has absolute coordinates:
+            y -= 1
 
         # Draw the player
         for point in self.player.position:

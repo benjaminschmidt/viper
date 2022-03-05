@@ -53,6 +53,9 @@ class Game:
         # False means that the game is not running for any reason
         self.running = True
 
+        # True if the game is beaten.
+        self.won = False
+
         # This will be the set to the coordinates of a box on the screen later.
         self.box_region = None
 
@@ -150,7 +153,8 @@ class Game:
         self.win.fill(bgcolor=self.level.background_color,
                       region=(0, 0, width, 1))
         self.win.cursor = (0, 0)
-        self.win.putchars('Score: ' + str(self.current_number - 1),
+        self.win.putchars(('Score: ' + str(self.current_number - 1)
+                           + '/' + str(self.level.goal)),
                           fgcolor=self.level.text_color,
                           bgcolor=self.level.background_color)
         self.win.cursor = (width - 10, 0)
@@ -159,7 +163,6 @@ class Game:
                           bgcolor=self.level.background_color)
 
     def death(self):
-        self.player.dead = True
         self.running = False
         if self.player.lives == 1:
             self.player.lives -= 1
@@ -182,10 +185,7 @@ class Game:
             pygame.quit()
             sys.exit()
         elif event.type == KEYDOWN:
-            # if event.key == K_ESCAPE:
-            #     pygame.quit()
-            #     sys.exit()
-            if self.player.lives == 0:
+            if self.player.lives == 0 or self.won:
                 if event.key == K_n:
                     pygame.quit()
                     sys.exit()
@@ -227,6 +227,11 @@ class Game:
             self.win.putchar(' ', bgcolor=self.level.background_color)
 
         if self.hit_number():
+            if self.current_number == self.level.goal:
+                self.running = False
+                self.won = True
+                self.draw_box('You won! Play again? y/n')
+                return
             self.new_number()
 
     def new_number(self):
@@ -264,6 +269,7 @@ class Game:
         self.player = Player(LEVEL)
 
         self.running = True
+        self.won = False
 
         self.current_number = 0
 
@@ -289,13 +295,18 @@ class Level:
         # Load the configuration file
         config = configparser.ConfigParser()
         config.read(filename)
+
         self.player_color = pygame.Color(config['Colors']['Player'])
         self.boundary_color = pygame.Color(config['Colors']['Boundary'])
         self.background_color = pygame.Color(config['Colors']['Background'])
         self.text_color = pygame.Color(config['Colors']['Text'])
         self.box_color = pygame.Color(config['Colors']['Box'])
+
         self.width = int(config['Dimensions']['Width'])
         self.height = int(config['Dimensions']['Height'])
+
+        self.goal = int(config['More']['Goal'])
+        self.next_level = config['More']['Nextlevel']
 
         # Create the grid where True is an obstacle and False is empty
         self.grid = []
@@ -363,6 +374,7 @@ class Player:
         # Load the configuration file
         config = configparser.ConfigParser()
         config.read(filename)
+
         self.growth = int(config['Player']['Growth'])
         self.lives = int(config['Player']['Lives'])
         self.speed = int(config['Player']['Speed'])

@@ -6,6 +6,5 @@ How to run
 --------------
 
 The program requires the libraries pygame and pygcurses to run. They can be
-installed via::
-  pip install pygame
-  pip install pygcurse
+installed in the correct versions via::
+  pip install -r requirements.txt

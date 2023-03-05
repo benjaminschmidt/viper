@@ -1,5 +1,5 @@
-Viper (v1.0.0)
-================
+Viper
+=====
 Simple remake of the classic game snake in Python3.
 
 How to run

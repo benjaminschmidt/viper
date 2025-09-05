@@ -1,0 +1,39 @@
+version = 1
+revision = 3
+requires-python = ">=3.11, <4"
+
+[[package]]
+name = "pygame"
+version = "2.1.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8d/78/819c3665f1f3e0ac71aeacc9f63d6ece23138cbae6ce92ea9c8d06104f60/pygame-2.1.3.tar.gz", hash = "sha256:df29c4369df9231eebffac801fa7af021279d7e9dc4c1cae698cc4077c98d069", size = 12772875, upload-time = "2023-02-14T17:33:39.011Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/65/38a333e19fa24e5abaa91256382672ad066666970040d3d0c662c2ad7abf/pygame-2.1.3-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:cb0493d0f7fa378fccfc65548aec92edeadbde981c964337f11c884432bfaa35", size = 12903716, upload-time = "2023-02-14T17:23:43.619Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/21/2aec0d2568ef49abd4b9a9e7559ea40c5fb5df9a3eabd94c0adff0a6073c/pygame-2.1.3-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:217072e80f470847e121b5c5658f89be35e2c1c3ab23d4126fe80fc64fd34d27", size = 11775651, upload-time = "2023-02-14T17:23:48.468Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/db/2463e6b95582903747d3720569feb25225735aa9124ffa5d5fd351256d25/pygame-2.1.3-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:55374e1afb72c6dc546fb1d9ac972de2adf642de69ec7003e66023254512f1e5", size = 13345151, upload-time = "2023-02-15T02:14:31.389Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/7a/edd525b2ac4ba9a507a0a11c2de3ce365d22bf9054aaf6b51e30510d67d5/pygame-2.1.3-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:a9f24b4aeba86e882f3640c4251b0325f86556a5f2661bd7c9e3dc1c9fe966c6", size = 14015845, upload-time = "2023-02-15T03:14:30.956Z" },
+    { url = "https://files.pythonhosted.org/packages/80/ca/9010783cbe3790afc0c078c3891ce5fb429f67b7ddf13ec7b7bacd44958a/pygame-2.1.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f04d89bdf7951e9fde68c7174b522befd9ae6e5c2a75d195435223df044aaacc", size = 13701060, upload-time = "2023-02-15T03:14:53.752Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/f3/500a5222ee49875fddff468bc69b7ab76278437f132ee6f339648c81e900/pygame-2.1.3-cp311-cp311-win32.whl", hash = "sha256:bf1024e516fd3a3948ec45f0ad3b63e69f66c342e4678b2e04a383f735272b8f", size = 10088045, upload-time = "2023-02-14T17:46:14Z" },
+    { url = "https://files.pythonhosted.org/packages/23/c4/64a649c9c9dc649c8c01d7f1027c0656155fc48ba17e6fdd2cb38a993610/pygame-2.1.3-cp311-cp311-win_amd64.whl", hash = "sha256:e18c6b0fa9e39ad3fe68e48ace92285c026ee70f05bf4dfa54a33fa89f7a0474", size = 10431599, upload-time = "2023-02-14T18:02:01.012Z" },
+]
+
+[[package]]
+name = "pygcurse"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/cc/51/b16db20f3e57cffddf712c16165a8c6d3ba22bb5692db53064b4271c8168/pygcurse-1.0.1.tar.gz", hash = "sha256:5460c7d6b7ecccf1d441211b92d41d40e612214851456c1f0411a107acdb3d7c", size = 27879, upload-time = "2021-02-26T22:09:29.529Z" }
+
+[[package]]
+name = "viper"
+version = "1.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "pygame" },
+    { name = "pygcurse" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pygame", specifier = "==2.1.3" },
+    { name = "pygcurse", specifier = "==1.0.1" },
+]

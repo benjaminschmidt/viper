@@ -1,0 +1,10 @@
+[project]
+name = "viper"
+version = "1.0.0"
+description = "Simple remake of the classic game snake"
+readme = "README.md"
+requires-python = "~=3.11 "
+dependencies = [
+    "pygame==2.1.3",
+    "pygcurse==1.0.1",
+]
